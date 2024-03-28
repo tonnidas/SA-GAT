@@ -5,10 +5,10 @@ import random
 import argparse
 import numpy as np
 import torch
+from tqdm import tqdm
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 
 from data import *
 from utils import *
@@ -16,6 +16,7 @@ from models import GAT, SpGAT
 
 # Training settings
 parser = argparse.ArgumentParser()
+parser.add_argument('--aggregate', action='store_true', default=False, help='Use aggregated features.')
 parser.add_argument('--dataset', default=None, help='Name of the dataset.')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--fastmode', action='store_true', default=False, help='Validate during training pass.')
@@ -56,9 +57,12 @@ print("idx_test.shape =", idx_test.shape)
 adj[adj > 0], adj[adj < 0] = 1, 0
 adj = adj + sp.eye(adj.shape[0])
 
-# normalize
-features = normalize_features(features)
-adj = normalize_adj(adj)
+if args.aggregate:
+    features = normalized_aggregated_features(features, adj)
+    adj = normalize_adj(adj)
+else:
+    features = normalize_features(features)
+    adj = normalize_adj(adj)
 
 # convert to torch tensor
 adj = torch.FloatTensor(np.array(adj.todense()))
@@ -95,6 +99,8 @@ if args.cuda:
     idx_val = idx_val.cuda()
     idx_test = idx_test.cuda()
 
+pbar = tqdm(range(args.epochs))
+
 def train(epoch):
     t = time.time()
     model.train()
@@ -113,12 +119,13 @@ def train(epoch):
 
     loss_val = F.nll_loss(output[idx_val], labels[idx_val])
     acc_val = accuracy(output[idx_val], labels[idx_val])
-    print('Epoch: {:04d}'.format(epoch+1),
-          'loss_train: {:.4f}'.format(loss_train.data.item()),
-          'acc_train: {:.4f}'.format(acc_train.data.item()),
-          'loss_val: {:.4f}'.format(loss_val.data.item()),
-          'acc_val: {:.4f}'.format(acc_val.data.item()),
-          'time: {:.4f}s'.format(time.time() - t))
+
+    pbar.set_description('Epoch: {:04d}'.format(epoch+1) +
+          ' loss_train: {:.4f}'.format(loss_train.data.item()) +
+          ' acc_train: {:.4f}'.format(acc_train.data.item()) +
+          ' loss_val: {:.4f}'.format(loss_val.data.item()) +
+          ' acc_val: {:.4f}'.format(acc_val.data.item()) +
+          ' time: {:.4f}s'.format(time.time() - t))
 
     return loss_val.data.item()
 
@@ -137,7 +144,8 @@ loss_values = []
 bad_counter = 0
 best = args.epochs + 1
 best_epoch = 0
-for epoch in range(args.epochs):
+
+for epoch in pbar:
     loss_values.append(train(epoch))
 
     torch.save(model.state_dict(), '{}.pkl'.format(epoch))
