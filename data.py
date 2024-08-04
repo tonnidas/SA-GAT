@@ -93,6 +93,21 @@ def load_data_gcn(dataset_str):
 
     return adj, features, labels, idx_train, idx_val, idx_test
 
+def load_data_ogb(dataset_str):
+    """https://ogb.stanford.edu/docs/home/"""
+    from ogb.nodeproppred import NodePropPredDataset
+
+    dataset = NodePropPredDataset(name = dataset_str)
+    split_idx = dataset.get_idx_split()
+    train_idx, valid_idx, test_idx = split_idx["train"], split_idx["valid"], split_idx["test"]
+    graph, label = dataset[0]
+
+    edge_list = [(graph['edge_index'][0][i], graph['edge_index'][1][i]) for i in range(0, len(graph['edge_index'][0]))]
+    adj = nx.adjacency_matrix(nx.from_edgelist(edge_list))
+    features = graph['node_feat']
+
+    return adj, features, label, train_idx, valid_idx, test_idx
+
 def encode_onehot(labels):
     # The classes must be sorted before encoding to enable static class encoding.
     # In other words, make sure the first class always maps to index 0.

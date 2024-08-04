@@ -43,6 +43,8 @@ if args.cuda:
 # Load data
 if args.dataset is None:
     adj, features, labels, idx_train, idx_val, idx_test = load_data()
+elif "ogbn" in args.dataset:
+    adj, features, labels, idx_train, idx_val, idx_test = load_data_ogb(args.dataset) 
 else:
     adj, features, labels, idx_train, idx_val, idx_test = load_data_gcn(args.dataset)
 
