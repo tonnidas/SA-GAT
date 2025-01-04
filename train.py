@@ -60,6 +60,7 @@ adj[adj > 0], adj[adj < 0] = 1, 0
 adj = adj + sp.eye(adj.shape[0])
 
 if args.aggregate:
+    print('Calculating aggregated features ...')
     features = normalized_aggregated_features(features, adj)
     adj = normalize_adj(adj)
 else:
